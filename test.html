@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WMAA Weather - Clamped to Top & Adjusted SCT/BKN</title>
+  <style>
+    /* Basic styling */
+    body {
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to bottom, #6EC1E4, #82CFF7);
+      color: white;
+      overflow-x: hidden;
+      position: relative;
+    }
+    header {
+      text-align: center;
+      padding: 30px;
+      background: rgba(0,0,0,0.6);
+      border-bottom: 2px solid #fff;
+    }
+    h1, h2 {
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    h1 { 
+      font-size: 2.5em; 
+      margin: 0; 
+    }
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 30px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    /* Fixed Cloud Box – attached to the top of its container */
+    .altitude-scale {
+      position: fixed;
+      left: 0;
+      top: 100px; /* directly below header */
+      width: 200px;
+      height: calc(100vh - 100px);
+      border-right: 2px solid white;
+      background: rgba(0,0,0,0.5);
+      z-index: 10;
+      overflow: hidden;
+    }
+    .altitude-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background-color: white;
+    }
+    .altitude-label {
+      position: absolute;
+      left: 10px;
+      font-size: 12px;
+      color: white;
+    }
+    /* Cloud styling */
+    .cloud {
+      position: absolute;
+      /* Use your image path here – a relative path is recommended for deployment */
+      background: url('file:///C:/Users/ethan/Documents/wmaaWeather/cloud.png') no-repeat center center;
+      background-size: contain;
+      opacity: 0.8;
+      animation: floatUp 1.5s ease-out forwards;
+    }
+    .cloud.few { width: 50px; height: 30px; }
+    .cloud.sct { width: 50px; height: 30px; }
+    /* BKN clouds are smaller and have the same offsets as SCT now */
+    .cloud.bkn { width: 50px; height: 40px; }
+    /* OVC clouds remain as before */
+    .cloud.ovc { width: 100px; height: 70px; filter: brightness(0.7); }
+    @keyframes floatUp {
+      from { top: 100vh; }
+      to { top: var(--target-top); }
+    }
+    /* Dropdown styling */
+    select {
+      padding: 5px;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .print-button {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: white;
+      margin-left: 10px;
+  }
+  .print-button:hover {
+      color: yellow;
+  }  
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WMAA Weather</h1>
+  </header>
+  
+  <!-- Fixed Cloud Box -->
+  <div class="altitude-scale" id="altitudeScale"></div>
+  
+  <!-- METAR Data Container -->
+  <div class="container" id="metarContainer">
+    <h2>METAR Data</h2>
+    <label for="metarSelector">Select Station:</label>
+    <select id="metarSelector"></select>
+    <div id="metarDetailsContainer"></div>
+  </div>
+  
+  <!-- Outlying Fields Container -->
+  <div class="container" id="fieldsContainer">
+    <h2>Outlying Fields Weather</h2>
+    <div id="outlyingFieldsContainer"></div>
+  </div>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // --- CONFIGURATION ---
+      const apiKey = "aWbzUcGDQj3X9apxVSqTsNlUIARs2W0Ixbtb4RPA4n4";
+      const metarStations = ["KGRR", "KMKG", "KAZO", "KBIV", "KLAN"];
+      const outlyingFields = {
+        "Y70": { name: "Ionia County Airport", sources: ["KGRR", "KLAN"], runways: [10,28] },
+        "K6D6": { name: "Greenville Municipal Airport", sources: ["KGRR", "KAZO"], runways: [10,28] },
+        "8D4": { name: "Paul C. Miller Airport", sources: ["KGRR", "KLAN"], runways: [7,25] },
+        "Z98": { name: "Ottawa Executive Airport", sources: ["KGRR", "KBIV"], runways: [2,20] },
+        "9D9": { name: "Hastings Airport", sources: ["KAZO", "KBIV"], runways: [12,30] }
+      };
+      const BUFFER = 1000;       // Buffer (ft) on each end of the dynamic range
+      const MIN_RANGE = 5000;    // Minimum dynamic range (ft)
+      // TOP_MARGIN is set to 0 so that the scale attaches directly to the container's top.
+      const TOP_MARGIN = 0;
+      
+      let metarDataCache = {};
+      
+      // --- FETCH METAR DATA ---
+      async function fetchMETAR(station) {
+        const url = `https://avwx.rest/api/metar/${station}?token=${apiKey}`;
+        console.log(`Fetching METAR for ${station}...`);
+    
+        try {
+            const response = await fetch(url);
+            console.log(`Response status for ${station}:`, response.status); // Log response status
+    
+            if (!response.ok) {
+                throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+            }
+    
+            const data = await response.json();
+            console.log(`Data received for ${station}:`, data);  // Log raw data
+    
+            if (!data.raw) {
+                throw new Error(`Invalid data for ${station}: ${JSON.stringify(data)}`);
+            }
+    
+            metarDataCache[station] = data.raw;
+            return data.raw;
+        } catch (error) {
+            console.error(`Error fetching METAR for ${station}:`, error);
+            metarDataCache[station] = null; // Mark as null if it fails
+            return null;
+        }
+    }
+    
+      
+      // --- PARSE CLOUD LAYERS ---
+      function parseCloudLayers(metar) {
+        console.log(`Parsing cloud layers from METAR: ${metar}`);
+        const layers = [];
+        const regex = /(BKN|OVC|FEW|SCT)(\d{3})/g;
+        let match;
+    
+        while ((match = regex.exec(metar)) !== null) {
+            console.log(`✅ Found cloud layer: Type=${match[1]}, Altitude=${parseInt(match[2], 10) * 100} ft`);
+            layers.push({ type: match[1], altitude: parseInt(match[2], 10) * 100 });
+        }
+    
+        if (layers.length === 0) {
+            console.warn(`⚠️ No cloud layers found in METAR: ${metar}`);
+        }
+    
+        return layers;
+    }    
+      
+      // --- PARSE WIND DATA ---
+      function parseWindData(metar) {
+        console.log(`Parsing wind data from METAR: ${metar}`);
+    
+        // Updated regex to properly capture gusts
+        const windMatch = metar.match(/(VRB|\d{3})(\d{2,3})G?(\d{2,3})?KT/);
+        
+        if (!windMatch) {
+            console.warn(`❌ Failed to parse wind data from METAR: ${metar}`);
+            return null;
+        }
+    
+        console.log(`✅ Matched wind:`, windMatch);
+    
+        return {
+            direction: windMatch[1] === "VRB" ? "VRB" : parseInt(windMatch[1], 10),
+            speed: parseInt(windMatch[2], 10),
+            gust: windMatch[3] ? parseInt(windMatch[3], 10) : null // Ensure gusts are captured
+        };
+    }    
+      
+      // --- DRAW DYNAMIC ALTITUDE SCALE ---
+      function drawAltitudeScale(minAlt, maxAlt) {
+        const scaleDiv = document.getElementById("altitudeScale");
+        const scaleHeight = scaleDiv.offsetHeight;
+        console.log(`Drawing scale from ${minAlt} ft to ${maxAlt} ft (Container height: ${scaleHeight}px)`);
+        scaleDiv.innerHTML = "";
+        const effectiveHeight = scaleHeight; // TOP_MARGIN = 0
+        for (let alt = minAlt; alt <= maxAlt; alt += 1000) {
+          const fraction = (alt - minAlt) / (maxAlt - minAlt);
+          const yPos = TOP_MARGIN + effectiveHeight * (1 - fraction);
+          const tick = document.createElement("div");
+          tick.className = "altitude-line";
+          tick.style.top = yPos + "px";
+          const label = document.createElement("div");
+          label.className = "altitude-label";
+          label.style.top = (yPos - 15) + "px";
+          label.textContent = alt + " ft";
+          scaleDiv.appendChild(tick);
+          scaleDiv.appendChild(label);
+        }
+      }
+      
+      // --- CLOUD CREATION & DISPLAY ---
+      function createClouds(cloudType, targetY, offsets) {
+        const scaleDiv = document.getElementById("altitudeScale");
+        const cloudHeights = { few: 30, sct: 30, bkn: 40, ovc: 70 };
+        const ch = cloudHeights[cloudType.toLowerCase()] || 30;
+        offsets.forEach(offset => {
+          const cloud = document.createElement("div");
+          cloud.className = "cloud " + cloudType.toLowerCase();
+          cloud.style.left = offset + "px";
+          const computedTarget = targetY - (ch / 2);
+          // Since TOP_MARGIN is 0, we clamp any negative computed value to 0 
+          const targetTop = Math.max(computedTarget, TOP_MARGIN);
+          console.log(`${cloudType} cloud (offset: ${offset}px): computed targetY = ${targetY}px, height adjustment = ${ch/2}px; computed target = ${computedTarget}px, clamped target = ${targetTop}px`);
+          cloud.style.setProperty("--target-top", targetTop + "px");
+          cloud.style.top = "100vh"; // Animate up from the bottom
+          scaleDiv.appendChild(cloud);
+        });
+      }
+      
+      // --- DISPLAY CLOUD LAYERS ---
+      function displayCloudLayers(cloudLayers, dynamicMin, dynamicMax) {
+        const scaleDiv = document.getElementById("altitudeScale");
+        const scaleHeight = scaleDiv.offsetHeight;
+        const effectiveHeight = scaleHeight; // TOP_MARGIN = 0, so effectiveHeight is full container
+        cloudLayers.forEach(layer => {
+          const fraction = (layer.altitude - dynamicMin) / (dynamicMax - dynamicMin);
+          const targetY = TOP_MARGIN + effectiveHeight * (1 - fraction);
+          console.log(`Mapping ${layer.type} layer at ${layer.altitude} ft: fraction = ${fraction.toFixed(2)}, computed targetY = ${targetY}px`);
+          switch(layer.type) {
+            case "FEW":
+              createClouds("few", targetY, [70]);
+              break;
+            case "SCT":
+              // Now SCT uses the same offsets as BKN: [20, 80, 140]
+              createClouds("sct", targetY, [20, 80, 140]);
+              break;
+            case "BKN":
+              createClouds("bkn", targetY, [20, 80, 140]);
+              break;
+            case "OVC":
+              createClouds("ovc", targetY, [40, 70, 100]);
+              break;
+            default:
+              console.warn("Unknown cloud type:", layer.type);
+          }
+        });
+      }
+      
+      // --- UPDATE CLOUD DISPLAY ---
+      function updateCloudDisplay(station) {
+        const metar = metarDataCache[station];
+        const scaleDiv = document.getElementById("altitudeScale");
+        scaleDiv.innerHTML = ""; // Clear cloud box
+        if (!metar) return;
+        const cloudLayers = parseCloudLayers(metar);
+        let dynamicMin = 5000, dynamicMax = 20000;
+        if (cloudLayers.length > 0) {
+          const altitudes = cloudLayers.map(layer => layer.altitude);
+          const cloudMin = Math.min(...altitudes);
+          const cloudMax = Math.max(...altitudes);
+          const rawRange = cloudMax - cloudMin;
+          if (rawRange < MIN_RANGE) {
+            const center = (cloudMin + cloudMax) / 2;
+            dynamicMin = Math.floor((center - MIN_RANGE / 2 - BUFFER) / 1000) * 1000;
+            dynamicMax = Math.ceil((center + MIN_RANGE / 2 + BUFFER) / 1000) * 1000;
+            console.log(`Enforcing minimum range: Center = ${center} ft → Range = ${dynamicMin} to ${dynamicMax} ft`);
+          } else {
+            dynamicMin = Math.floor((cloudMin - BUFFER) / 1000) * 1000;
+            dynamicMax = Math.ceil((cloudMax + BUFFER) / 1000) * 1000;
+            console.log(`Dynamic range from clouds: ${dynamicMin} to ${dynamicMax} ft`);
+          }
+        } else {
+          console.log("No cloud layers found. Using default dynamic range.");
+        }
+        drawAltitudeScale(dynamicMin, dynamicMax);
+        displayCloudLayers(cloudLayers, dynamicMin, dynamicMax);
+      }
+      
+      // --- DECODE METAR FOR DISPLAY ---
+      function decodeMetar(metar) {
+        let decoded = `<p><strong>Raw METAR:</strong> ${metar}</p>`;
+        const wind = parseWindData(metar);
+    
+        if (wind) {
+            decoded += `<p><strong>Wind:</strong> `;
+    
+            if (wind.direction === "VRB") {
+                decoded += `Variable at ${wind.speed} kt`;
+            } else {
+                decoded += `${wind.direction}° at ${wind.speed} kt`;
+            }
+    
+            if (wind.gust !== null) { // Ensure gusts display if present
+                decoded += `, gusting to ${wind.gust} kt`;
+            }
+    
+            decoded += `</p>`;
+        } else {
+            decoded += `<p><strong>Wind:</strong> Not available</p>`;
+        }
+    
+        const clouds = parseCloudLayers(metar);
+        if (clouds.length) {
+            decoded += `<p><strong>Cloud Layers:</strong></p><ul>`;
+            clouds.forEach(layer => {
+                decoded += `<li>${layer.type} at ${layer.altitude} ft</li>`;
+            });
+            decoded += `</ul>`;
+        } else {
+            decoded += `<p><strong>Cloud Layers:</strong> None</p>`;
+        }
+    
+        return decoded;
+    }    
+      
+      // --- UPDATE METAR DISPLAY (on dropdown change) ---
+      function updateMetarDisplay(station) {
+        const container = document.getElementById("metarDetailsContainer");
+        const metar = metarDataCache[station];
+        container.innerHTML = metar ? decodeMetar(metar) : "<p>No data available for this station.</p>";
+        updateCloudDisplay(station);
+      }
+      
+      // --- POPULATE DROPDOWN MENU ---
+      function populateDropdown() {
+        const selector = document.getElementById("metarSelector");
+        selector.innerHTML = "";
+        metarStations.forEach(station => {
+          const option = document.createElement("option");
+          option.value = station;
+          option.textContent = station;
+          selector.appendChild(option);
+        });
+        selector.addEventListener("change", (e) => updateMetarDisplay(e.target.value));
+        if (metarStations.length) updateMetarDisplay(metarStations[0]);
+      }
+      
+      // --- OUTLYING FIELDS WEATHER ---
+      function parseOutlyingFieldWeather() {
+        console.log("Parsing outlying field weather...");
+    
+        const container = document.getElementById("outlyingFieldsContainer");
+        container.innerHTML = "";  // Clear previous data
+    
+        Object.keys(outlyingFields).forEach(fieldKey => {
+            const field = outlyingFields[fieldKey];
+            console.log(`Checking data for ${field.name}:`, field.sources);
+    
+            const metar1 = metarDataCache[field.sources[0]];
+            const metar2 = metarDataCache[field.sources[1]];
+    
+            console.log(`METAR1 (${field.sources[0]}):`, metar1);
+            console.log(`METAR2 (${field.sources[1]}):`, metar2);
+    
+            if (!metar1 || !metar2) {
+                console.warn(`Skipping ${field.name}: Missing METAR data.`);
+                return;
+            }
+    
+            const wind1 = parseWindData(metar1);
+            const wind2 = parseWindData(metar2);
+    
+            if (!wind1 || !wind2) {
+                console.warn(`Skipping ${field.name}: Could not parse wind data.`);
+                return;
+            }
+    
+            const avgDirection = (wind1.direction === "VRB" || wind2.direction === "VRB")
+                ? "VRB"
+                : Math.round((wind1.direction + wind2.direction) / 2);
+    
+            const avgSpeed = Math.round((wind1.speed + wind2.speed) / 2);
+    
+            let bestRunway = field.runways.reduce((best, runway) => {
+                let headwind = avgDirection !== "VRB"
+                    ? avgSpeed * Math.cos(Math.abs((avgDirection - runway * 10) * Math.PI/180))
+                    : 0;
+                return headwind > best.headwind ? { runway, headwind } : best;
+            }, { runway: field.runways[0], headwind: -Infinity });
+    
+            const crosswind = avgDirection !== "VRB"
+                ? Math.abs(avgSpeed * Math.sin(Math.abs((avgDirection - bestRunway.runway * 10) * Math.PI/180)))
+                : 0;
+    
+                container.innerHTML += `
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <h3>${field.name}</h3>
+                    <button class="print-button" onclick="printAirportDiagram('${fieldKey}')">
+                        🖨️
+                    </button>
+                </div>
+                <p><strong>Estimated Wind:</strong> ${avgDirection}° at ${avgSpeed} kt</p>
+                <p><strong>Best Runway:</strong> ${bestRunway.runway} (Headwind: ${bestRunway.headwind.toFixed(2)} kt)</p>
+                <p><strong>Crosswind:</strong> ${crosswind.toFixed(2)} kt</p>
+            `;            
+    
+            console.log(`✅ Outlying Field ${field.name}: Wind ${avgDirection}° at ${avgSpeed} kt, Best Runway ${bestRunway.runway}`);
+        });
+    }    
+      
+      // --- LOAD ALL METARs, POPULATE DROPDOWN, AND PROCESS OUTLYING FIELDS ---
+      async function loadAllMetars() {
+        console.log("Loading METARs...");
+        
+        await Promise.all(metarStations.map(station => fetchMETAR(station)));
+    
+        console.log("All METARs loaded!");
+        console.log("Final METAR cache:", metarDataCache);
+    
+        populateDropdown();
+        
+        console.log("Calling parseOutlyingFieldWeather() now...");
+        setTimeout(parseOutlyingFieldWeather, 500);  // Add a slight delay
+    }    
+      
+    function printAirportDiagram(airportCode) {
+      const diagramPaths = {
+          "Y70": "placeholder_path/Y70_diagram.pdf",
+          "K6D6": "placeholder_path/K6D6_diagram.pdf",
+          "8D4": "placeholder_path/8D4_diagram.pdf",
+          "Z98": "placeholder_path/Z98_diagram.pdf",
+          "9D9": "placeholder_path/9D9_diagram.pdf"
+      };
+  
+      if (diagramPaths[airportCode]) {
+          const diagramUrl = diagramPaths[airportCode];
+          const printWindow = window.open(diagramUrl, "_blank");
+          if (printWindow) {
+              printWindow.onload = () => printWindow.print();
+          } else {
+              alert("Pop-up blocked! Please allow pop-ups for printing.");
+          }
+      } else {
+          alert("Airport diagram not found.");
+      }
+  }  
+      loadAllMetars();
+    });
+  </script>
+</body>
+</html>
