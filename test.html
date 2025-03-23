@@ -3,52 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WMAA Weather - Clamped to Top & Adjusted SCT/BKN</title>
+  <title>WMAA Weather</title>
   <style>
-    /* Basic styling */
+    
+    /* Global Styling */
     body {
-      font-family: "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(to bottom, #00205B, #53565A);
+      color: #F0F0F0;
+      font-family: 'Calibri', Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background: linear-gradient(to bottom, #6EC1E4, #82CFF7);
-      color: white;
-      overflow-x: hidden;
-      position: relative;
     }
+
     header {
+      background: #CF4520;
+      padding: 20px;
       text-align: center;
-      padding: 30px;
-      background: rgba(0,0,0,0.6);
-      border-bottom: 2px solid #fff;
+      font-size: 26px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-bottom: 3px solid #D57800;
+      color: #F0F0F0;
+      font-family: 'Calibri', Arial, sans-serif;
     }
+    
     h1, h2 {
+      font-family: 'Calibri', Arial, sans-serif;
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
+      color: #F0F0F0;
     }
-    h1 { 
-      font-size: 2.5em; 
-      margin: 0; 
-    }
+    h1 { font-size: 2.5em; }
+    h2 { font-size: 1.8em; }
+
     .container {
-      max-width: 800px;
-      margin: 50px auto;
-      padding: 30px;
-      background: rgba(0,0,0,0.6);
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      color: #D0D3D4;
+      font-family: 'Calibri', sans-serif;
     }
+    /* Outlying Fields Grid Layout */
+    #outlyingFieldsContainer {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-auto-rows: min-content;
+      grid-gap: 30px;
+      justify-content: center;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+    /* Individual Field Box */
+    .outlying-field {
+      background: #53565A;
+      color: #E0E0E0;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: left;
+      font-weight: bold;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      margin-bottom: 20px;
+      font-family: 'Calibri', sans-serif;
+    }
+      /* Hover Effect - Slight Expansion */
+      .outlying-field:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+        background: #D0D3D4;
+        color: #00205B;
+      }
+      /* Field Titles */
+      .outlying-field h3 {
+        margin: 0;
+        font-size: 1.2em;
+        color: #D57800;
+        font-family: 'Calibri', Arial, sans-serif;
+      }
     /* Fixed Cloud Box – attached to the top of its container */
     .altitude-scale {
-      position: fixed;
+      position: absolute;
       left: 0;
-      top: 100px; /* directly below header */
-      width: 200px;
-      height: calc(100vh - 100px);
-      border-right: 2px solid white;
-      background: rgba(0,0,0,0.5);
+      top: 207px;
+      width: 250px;
+      height: calc(100vh - 192px);
+      background: rgba(0, 0, 0, 0.5);
       z-index: 10;
       overflow: hidden;
+      border-right: 3px solid #D57800;
+      color: #F0F0F0;
+      font-family: 'Calibri', sans-serif;
     }
     .altitude-line {
       position: absolute;
@@ -66,17 +119,14 @@
     /* Cloud styling */
     .cloud {
       position: absolute;
-      /* Use your image path here – a relative path is recommended for deployment */
       background: url('file:///C:/Users/ethan/Documents/wmaaWeather/cloud.png') no-repeat center center;
       background-size: contain;
-      opacity: 0.8;
+      opacity: 0.9;
       animation: floatUp 1.5s ease-out forwards;
     }
     .cloud.few { width: 50px; height: 30px; }
     .cloud.sct { width: 50px; height: 30px; }
-    /* BKN clouds are smaller and have the same offsets as SCT now */
     .cloud.bkn { width: 50px; height: 40px; }
-    /* OVC clouds remain as before */
     .cloud.ovc { width: 100px; height: 70px; filter: brightness(0.7); }
     @keyframes floatUp {
       from { top: 100vh; }
@@ -84,26 +134,33 @@
     }
     /* Dropdown styling */
     select {
-      padding: 5px;
+      padding: 8px;
       font-size: 16px;
       margin-bottom: 20px;
+      border-radius: 5px;
+      border: 2px solid #D57800;
+      background: #00205B;
+      color: #D0D3D4;
+      font-weight: bold;
+      font-family: 'Calibri', sans-serif;
     }
     .print-button {
       background: none;
       border: none;
       font-size: 18px;
       cursor: pointer;
-      color: white;
+      color: #D57800;
       margin-left: 10px;
-  }
-  .print-button:hover {
-      color: yellow;
-  }  
+      font-family: 'Calibri', sans-serif;
+    }
+    .print-button:hover {
+      color: #CF4520;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>WMAA Weather</h1>
+    <h1 style="color:#F0F0F0; font-family: 'Calibri', Arial, sans-serif;">WMAA Weather</h1>
   </header>
   
   <!-- Fixed Cloud Box -->
@@ -111,16 +168,24 @@
   
   <!-- METAR Data Container -->
   <div class="container" id="metarContainer">
-    <h2>METAR Data</h2>
+    <h2 style="color:#F0F0F0; font-family: 'Calibri', Arial, sans-serif;">METAR Data</h2>
     <label for="metarSelector">Select Station:</label>
     <select id="metarSelector"></select>
+    <button id="metarPrintButton" class="print-button">🖨️</button>
     <div id="metarDetailsContainer"></div>
   </div>
   
   <!-- Outlying Fields Container -->
   <div class="container" id="fieldsContainer">
     <h2>Outlying Fields Weather</h2>
-    <div id="outlyingFieldsContainer"></div>
+    <div id="outlyingFieldsContainer">
+      <div class="outlying-field" id="Y70Metar"></div>
+      <div class="outlying-field" id="K6D6Metar"></div>
+      <div class="outlying-field" id="8D4Metar"></div>
+      <div class="outlying-field" id="Z98Metar"></div>
+      <div class="outlying-field" id="9D9Metar"></div>
+      <div class="outlying-field" id="35DMetar"></div>
+    </div>  
   </div>
   
   <script>
@@ -130,11 +195,13 @@
       const metarStations = ["KGRR", "KMKG", "KAZO", "KBIV", "KLAN"];
       const outlyingFields = {
         "Y70": { name: "Ionia County Airport", sources: ["KGRR", "KLAN"], runways: [10,28] },
-        "K6D6": { name: "Greenville Municipal Airport", sources: ["KGRR", "KAZO"], runways: [10,28] },
-        "8D4": { name: "Paul C. Miller Airport", sources: ["KGRR", "KLAN"], runways: [7,25] },
-        "Z98": { name: "Ottawa Executive Airport", sources: ["KGRR", "KBIV"], runways: [2,20] },
-        "9D9": { name: "Hastings Airport", sources: ["KAZO", "KBIV"], runways: [12,30] }
-      };
+        "K6D6": { name: "Greenville Airport", sources: ["KGRR", "KAZO"], runways: [10,28] },
+        "8D4": { name: "Sparta Airport ", sources: ["KGRR", "KLAN"], runways: [7,25] },
+        "Z98": { name: "Ottawa Exec. Airport", sources: ["KGRR", "KBIV"], runways: [2,20] },
+        "9D9": { name: "Hastings Airport ", sources: ["KAZO", "KBIV"], runways: [12,30] },
+        "35D": { name: "Padgham Field", sources: ["KGRR", "KAZO"], runways: [11,29] }
+    };    
+      
       const BUFFER = 1000;       // Buffer (ft) on each end of the dynamic range
       const MIN_RANGE = 5000;    // Minimum dynamic range (ft)
       // TOP_MARGIN is set to 0 so that the scale attaches directly to the container's top.
@@ -355,8 +422,14 @@
         const metar = metarDataCache[station];
         container.innerHTML = metar ? decodeMetar(metar) : "<p>No data available for this station.</p>";
         updateCloudDisplay(station);
+    
+        // 🔹 Update print button link when station changes
+        const printButton = document.getElementById("metarPrintButton");
+        if (printButton) {
+            printButton.onclick = () => printMetarDiagram(station);
+        }
       }
-      
+    1
       // --- POPULATE DROPDOWN MENU ---
       function populateDropdown() {
         const selector = document.getElementById("metarSelector");
@@ -371,98 +444,137 @@
         if (metarStations.length) updateMetarDisplay(metarStations[0]);
       }
       
-      // --- OUTLYING FIELDS WEATHER ---
+      // --- OUTLYING FIELDS WEATHER (Fixed) ---
       function parseOutlyingFieldWeather() {
         console.log("Parsing outlying field weather...");
-    
+      
         const container = document.getElementById("outlyingFieldsContainer");
-        container.innerHTML = "";  // Clear previous data
-    
+        container.innerHTML = ""; // Clear previous data
+      
         Object.keys(outlyingFields).forEach(fieldKey => {
             const field = outlyingFields[fieldKey];
-            console.log(`Checking data for ${field.name}:`, field.sources);
-    
+      
+            // Create a new div for the field
+            let fieldDiv = document.createElement("div");
+            fieldDiv.className = "outlying-field"; 
+            fieldDiv.id = `${fieldKey}Metar`; 
+      
+            container.appendChild(fieldDiv); // Ensure it's added before updating content
+            
             const metar1 = metarDataCache[field.sources[0]];
             const metar2 = metarDataCache[field.sources[1]];
-    
-            console.log(`METAR1 (${field.sources[0]}):`, metar1);
-            console.log(`METAR2 (${field.sources[1]}):`, metar2);
-    
+      
             if (!metar1 || !metar2) {
-                console.warn(`Skipping ${field.name}: Missing METAR data.`);
+                fieldDiv.innerHTML = `<h3>${field.name}</h3><p>No METAR data available.</p>`;
                 return;
             }
-    
+      
             const wind1 = parseWindData(metar1);
             const wind2 = parseWindData(metar2);
-    
             if (!wind1 || !wind2) {
-                console.warn(`Skipping ${field.name}: Could not parse wind data.`);
+                fieldDiv.innerHTML = `<h3>${field.name}</h3><p>Could not parse wind data.</p>`;
                 return;
             }
-    
+      
             const avgDirection = (wind1.direction === "VRB" || wind2.direction === "VRB")
                 ? "VRB"
                 : Math.round((wind1.direction + wind2.direction) / 2);
-    
+      
             const avgSpeed = Math.round((wind1.speed + wind2.speed) / 2);
-    
+      
             let bestRunway = field.runways.reduce((best, runway) => {
                 let headwind = avgDirection !== "VRB"
-                    ? avgSpeed * Math.cos(Math.abs((avgDirection - runway * 10) * Math.PI/180))
+                    ? Math.round(avgSpeed * Math.cos(Math.abs((avgDirection - runway * 10) * Math.PI / 180)))
                     : 0;
                 return headwind > best.headwind ? { runway, headwind } : best;
             }, { runway: field.runways[0], headwind: -Infinity });
-    
+      
             const crosswind = avgDirection !== "VRB"
-                ? Math.abs(avgSpeed * Math.sin(Math.abs((avgDirection - bestRunway.runway * 10) * Math.PI/180)))
+                ? Math.round(Math.abs(avgSpeed * Math.sin(Math.abs((avgDirection - bestRunway.runway * 10) * Math.PI / 180))))
                 : 0;
-    
-                container.innerHTML += `
+      
+            fieldDiv.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <h3>${field.name}</h3>
-                    <button class="print-button" onclick="printAirportDiagram('${fieldKey}')">
-                        🖨️
-                    </button>
+                    <button class="print-button" onclick="printAirportKneeboard('${fieldKey}')">🖨️</button>
                 </div>
-                <p><strong>Estimated Wind:</strong> ${avgDirection}° at ${avgSpeed} kt</p>
-                <p><strong>Best Runway:</strong> ${bestRunway.runway} (Headwind: ${bestRunway.headwind.toFixed(2)} kt)</p>
-                <p><strong>Crosswind:</strong> ${crosswind.toFixed(2)} kt</p>
-            `;            
-    
+                <p><strong>Wind:</strong> ${avgDirection}° at ${avgSpeed} kt</p>
+                <p><strong>Best Runway:</strong> ${bestRunway.runway}</p>
+                <p><strong>Headwind: ${bestRunway.headwind} kt</p>
+                <p><strong>Crosswind:</strong> ${crosswind} kt</p>
+                <hr style="border: 1px solid white; margin: 15px 0;">
+            `;
+      
             console.log(`✅ Outlying Field ${field.name}: Wind ${avgDirection}° at ${avgSpeed} kt, Best Runway ${bestRunway.runway}`);
         });
-    }    
-      
-      // --- LOAD ALL METARs, POPULATE DROPDOWN, AND PROCESS OUTLYING FIELDS ---
-      async function loadAllMetars() {
-        console.log("Loading METARs...");
-        
-        await Promise.all(metarStations.map(station => fetchMETAR(station)));
-    
-        console.log("All METARs loaded!");
-        console.log("Final METAR cache:", metarDataCache);
-    
-        populateDropdown();
-        
-        console.log("Calling parseOutlyingFieldWeather() now...");
-        setTimeout(parseOutlyingFieldWeather, 500);  // Add a slight delay
-    }    
-      
-    function printAirportDiagram(airportCode) {
+      }      
+
+// --- UPDATE METAR DISPLAY (Fixed) ---
+function updateMetarDisplay(station) {
+  const container = document.getElementById("metarDetailsContainer");
+  const metar = metarDataCache[station];
+
+  container.innerHTML = metar ? decodeMetar(metar) : "<p><em>Loading data or unavailable.</em></p>";
+  updateCloudDisplay(station);
+
+  // Update print button link when station changes
+  const printButton = document.getElementById("metarPrintButton");
+  if (printButton) {
+      printButton.onclick = () => printMetarDiagram(station);
+  }
+}
+
+// --- LOAD ALL METARs, POPULATE DROPDOWN, AND PROCESS OUTLYING FIELDS (Fixed) ---
+async function loadAllMetars() {
+  console.log("Loading METARs...");
+
+  await Promise.all(metarStations.map(station => fetchMETAR(station)));
+
+  console.log("All METARs loaded!");
+  console.log("Final METAR cache:", metarDataCache);
+
+  populateDropdown();
+  
+  console.log("Calling parseOutlyingFieldWeather() now...");
+  setTimeout(parseOutlyingFieldWeather, 500); // Add a slight delay
+}
+  loadAllMetars();
+
+    });
+
+    function printMetarDiagram(station) {
       const diagramPaths = {
-          "Y70": "placeholder_path/Y70_diagram.pdf",
-          "K6D6": "placeholder_path/K6D6_diagram.pdf",
-          "8D4": "placeholder_path/8D4_diagram.pdf",
-          "Z98": "placeholder_path/Z98_diagram.pdf",
-          "9D9": "placeholder_path/9D9_diagram.pdf"
+          "KGRR": "https://90percentnerd.github.io/dev-wmaaWeather/print/grr_airport_diagram.pdf",
+          "KMKG": "https://90percentnerd.github.io/dev-wmaaWeather/print/mkg_airport_diagram.pdf",
+          "KAZO": "https://90percentnerd.github.io/dev-wmaaWeather/print/azo_airport_diagram.pdf",
+          "KBIV": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Holland.pdf",
+          "KLAN": "https://90percentnerd.github.io/dev-wmaaWeather/print/lan_airport_diagram.pdf"
       };
   
-      if (diagramPaths[airportCode]) {
-          const diagramUrl = diagramPaths[airportCode];
+      if (diagramPaths[station]) {
+          const diagramUrl = diagramPaths[station];
+  
+          // Open the PDF in a new window
           const printWindow = window.open(diagramUrl, "_blank");
+  
           if (printWindow) {
-              printWindow.onload = () => printWindow.print();
+              printWindow.onload = function () {
+                  setTimeout(() => {
+                      console.log("Printing PDF at 5x8 on 8.5x11 paper...");
+                    
+                      printWindow.document.body.innerHTML += `
+                          <script>
+                              window.onload = function() {
+                                  var printStyle = document.createElement('style');
+                                  printStyle.innerHTML = '@page { size: 8.5in 11in; margin: 1.5in auto; }';
+                                  document.head.appendChild(printStyle);
+                                  window.print();
+                              };
+                          <script>
+                      `;
+  
+                  }, 1000); // Ensure the PDF is fully loaded before printing
+              };
           } else {
               alert("Pop-up blocked! Please allow pop-ups for printing.");
           }
@@ -470,8 +582,37 @@
           alert("Airport diagram not found.");
       }
   }  
-      loadAllMetars();
-    });
+
+    function printAirportKneeboard(airportCode) {
+      const diagramPaths = {
+          "Y70": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Ionia_County.pdf",
+          "K6D6": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Greenville_Muni.pdf",
+          "8D4": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Paul_C_Miller_Sparta.pdf",
+          "Z98": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Ottawa_Exec.pdf",
+          "9D9": "https://90percentnerd.github.io/dev-wmaaWeather/print/Kneeboard_For_Hastings.pdf"
+      };
+  
+      if (diagramPaths[airportCode]) {
+          const diagramUrl = diagramPaths[airportCode];
+  
+          // Open in a new tab
+          const printWindow = window.open(diagramUrl, "_blank");
+  
+          if (printWindow) {
+              // Wait for the file to fully load before triggering the print command
+              printWindow.onload = function () {
+                  setTimeout(() => {
+                      printWindow.print();
+                  }, 500); // Delay to ensure the PDF is loaded
+              };
+          } else {
+              alert("Pop-up blocked! Please allow pop-ups for printing.");
+          }
+      } else {
+          alert("Airport diagram not found.");
+      }
+  }  
+
   </script>
 </body>
 </html>
